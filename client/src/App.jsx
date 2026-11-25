@@ -1,14 +1,31 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ReadingsPage from './pages/ReadingsPage';
+import ReportsPage from './pages/ReportsPage';
+
 function App() {
   return (
-    <div className="app">
-      <header className="app-header">
-        <span className="logo">Sweety</span>
-      </header>
-      <main className="container">
-        <h1>Blood glucose tracker</h1>
-        <p className="muted">Log your readings and keep an eye on your trends.</p>
-      </main>
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route index element={<ReadingsPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
