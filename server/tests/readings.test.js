@@ -56,6 +56,13 @@ describe('POST /api/readings', () => {
     expect(res.body.error).toBe('You already have an After lunch reading for this date.');
   });
 
+  it('uses "a" for slots that start with a consonant', async () => {
+    await addReading({ slot: 'morning_fasting' });
+    const res = await addReading({ slot: 'morning_fasting' });
+
+    expect(res.body.error).toBe('You already have a Morning (fasting) reading for this date.');
+  });
+
   it('handles two requests for the same slot at the same time', async () => {
     const results = await Promise.all([
       addReading({ slot: 'after_dinner' }),

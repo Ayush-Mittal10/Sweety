@@ -12,7 +12,10 @@ const MAX_READINGS_PER_DAY = 4;
 const UNIQUE_VIOLATION = '23505';
 
 function duplicateSlotMessage(slot) {
-  return `You already have an ${SLOT_LABELS[slot]} reading for this date.`;
+  const label = SLOT_LABELS[slot];
+  // "an After lunch" but "a Morning (fasting)"
+  const article = /^[aeiou]/i.test(label) ? 'an' : 'a';
+  return `You already have ${article} ${label} reading for this date.`;
 }
 
 // Checks the "one per slot" and "4 per day" rules against what is already
