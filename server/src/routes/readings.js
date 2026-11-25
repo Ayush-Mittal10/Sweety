@@ -15,6 +15,32 @@ function duplicateSlotMessage(slot) {
   return `You already have an ${SLOT_LABELS[slot]} reading for this date.`;
 }
 
+// Checks the "one per slot" and "4 per day" rules against what is already
+// saved. When editing, pass the reading's own id so it doesn't clash with itself.
+// Returns an error message or null.
+async function findDayConflict(userId, date, slot, ignoreId = null) {
+  const { rows } = await pool.query(
+    `SELECT slot FROM readings
+     WHERE user_id = $1 AND reading_date = $2 AND id IS DISTINCT FROM $3::int`,
+    [userId, date, ignoreId]
+  );
+
+  if (rows.length >= MAX_READINGS_PER_DAY) {
+    return 'You can add only 4 readings per day.';
+  }
+  if (rows.some((reading) => reading.slot === slot)) {
+    return duplicateSlotMessage(slot);
+  }
+  return null;
+}
+
+// Route ids come in as strings; anything that isn't a sensible id is
+// treated as "not found" instead of reaching the database
+function parseId(raw) {
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null;
+}
+
 // GET /api/readings?date=YYYY-MM-DD  (date is optional)
 // Newest day first; within a day, in slot order (morning -> dinner).
 router.get('/', async (req, res) => {
@@ -49,17 +75,8 @@ router.post('/', async (req, res) => {
   const { date, slot } = body;
   const value = Number(body.value);
 
-  const { rows: sameDay } = await pool.query(
-    'SELECT slot FROM readings WHERE user_id = $1 AND reading_date = $2',
-    [req.userId, date]
-  );
-
-  if (sameDay.length >= MAX_READINGS_PER_DAY) {
-    return res.status(409).json({ error: 'You can add only 4 readings per day.' });
-  }
-  if (sameDay.some((reading) => reading.slot === slot)) {
-    return res.status(409).json({ error: duplicateSlotMessage(slot) });
-  }
+  const conflict = await findDayConflict(req.userId, date, slot);
+  if (conflict) return res.status(409).json({ error: conflict });
 
   try {
     const { rows } = await pool.query(
@@ -72,6 +89,47 @@ router.post('/', async (req, res) => {
   } catch (err) {
     // Two requests for the same slot at the same moment can both pass the
     // check above; the unique constraint catches the second one.
+    if (err.code === UNIQUE_VIOLATION) {
+      return res.status(409).json({ error: duplicateSlotMessage(slot) });
+    }
+    throw err;
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(404).json({ error: 'Reading not found.' });
+
+  const body = req.body || {};
+  const error = validateReading(body);
+  if (error) return res.status(400).json({ error });
+
+  const { date, slot } = body;
+  const value = Number(body.value);
+
+  // Filtering by user_id means someone else's reading looks the same as a
+  // missing one, so we don't reveal that it exists
+  const existing = await pool.query('SELECT id FROM readings WHERE id = $1 AND user_id = $2', [
+    id,
+    req.userId,
+  ]);
+  if (existing.rowCount === 0) {
+    return res.status(404).json({ error: 'Reading not found.' });
+  }
+
+  const conflict = await findDayConflict(req.userId, date, slot, id);
+  if (conflict) return res.status(409).json({ error: conflict });
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE readings
+       SET reading_date = $1, slot = $2, value = $3, updated_at = now()
+       WHERE id = $4 AND user_id = $5
+       RETURNING id, reading_date AS date, slot, value`,
+      [date, slot, value, id, req.userId]
+    );
+    res.json({ reading: rows[0] });
+  } catch (err) {
     if (err.code === UNIQUE_VIOLATION) {
       return res.status(409).json({ error: duplicateSlotMessage(slot) });
     }

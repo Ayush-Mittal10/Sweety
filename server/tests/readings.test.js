@@ -161,3 +161,83 @@ describe('GET /api/readings', () => {
     expect(res.body.readings).toEqual([]);
   });
 });
+
+describe('PUT /api/readings/:id', () => {
+  function updateReading(id, reading, authToken = token) {
+    return request(app)
+      .put(`/api/readings/${id}`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ date: '2026-10-15', slot: 'morning_fasting', value: 110, ...reading });
+  }
+
+  it('updates the value', async () => {
+    const created = await addReading({ value: 110 });
+    const res = await updateReading(created.body.reading.id, { value: 125 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reading.value).toBe(125);
+  });
+
+  it('allows saving a reading without changing its slot', async () => {
+    // the reading must not count as a duplicate of itself
+    const created = await addReading({ slot: 'after_lunch' });
+    const res = await updateReading(created.body.reading.id, { slot: 'after_lunch', value: 160 });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('allows editing when the day already has 4 readings', async () => {
+    let lastId;
+    for (const slot of ['morning_fasting', 'after_breakfast', 'after_lunch', 'after_dinner']) {
+      const created = await addReading({ slot });
+      lastId = created.body.reading.id;
+    }
+
+    const res = await updateReading(lastId, { slot: 'after_dinner', value: 180 });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects moving a reading into a slot that is already taken', async () => {
+    await addReading({ slot: 'after_lunch' });
+    const created = await addReading({ slot: 'after_dinner' });
+
+    const res = await updateReading(created.body.reading.id, { slot: 'after_lunch' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('You already have an After lunch reading for this date.');
+  });
+
+  it('rejects moving a reading to a day that is already full', async () => {
+    for (const slot of ['morning_fasting', 'after_breakfast', 'after_lunch', 'after_dinner']) {
+      await addReading({ slot, date: '2026-10-15' });
+    }
+    const created = await addReading({ date: '2026-10-14' });
+
+    const res = await updateReading(created.body.reading.id, { date: '2026-10-15' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('You can add only 4 readings per day.');
+  });
+
+  it('applies the same validation as create', async () => {
+    const created = await addReading();
+    const res = await updateReading(created.body.reading.id, { value: 700 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Value must be between 40 and 600 mg/dl.');
+  });
+
+  it("returns 404 for another user's reading", async () => {
+    const created = await addReading();
+    const otherToken = await registerUser({ email: 'ravi@example.com' });
+
+    const res = await updateReading(created.body.reading.id, { value: 200 }, otherToken);
+
+    expect(res.status).toBe(404);
+  });
+
+  it.each(['999', 'abc', '99999999999'])('returns 404 for id %p', async (id) => {
+    const res = await updateReading(id, {});
+    expect(res.status).toBe(404);
+  });
+});
