@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
 
   const ranges = getReportRanges(date);
 
-  const [daily, monthToDate, previousMonth, dailyReadings] = await Promise.all([
+  const [daily, monthToDate, previousMonth, dailyReadings, monthByDay] = await Promise.all([
     getStats(req.userId, ranges.daily),
     getStats(req.userId, ranges.monthToDate),
     getStats(req.userId, ranges.previousMonth),
@@ -47,12 +47,24 @@ router.get('/', async (req, res) => {
        ORDER BY array_position($3::text[], slot::text)`,
       [req.userId, date, SLOTS]
     ),
+    // one row per day that has readings, used for the chart
+    pool.query(
+      `SELECT reading_date                          AS date,
+              ROUND(AVG(value)::numeric, 1)::float AS average,
+              MIN(value)                           AS lowest,
+              MAX(value)                           AS highest
+       FROM readings
+       WHERE user_id = $1 AND reading_date BETWEEN $2 AND $3
+       GROUP BY reading_date
+       ORDER BY reading_date`,
+      [req.userId, ranges.monthToDate.from, ranges.monthToDate.to]
+    ),
   ]);
 
   res.json({
     date,
     daily: { ...daily, readings: dailyReadings.rows },
-    monthToDate,
+    monthToDate: { ...monthToDate, byDay: monthByDay.rows },
     previousMonth,
   });
 });

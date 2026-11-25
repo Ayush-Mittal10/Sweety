@@ -65,7 +65,7 @@ describe('GET /api/reports', () => {
   it('returns month-to-date stats up to the selected date only', async () => {
     const res = await getReport('2026-10-15');
 
-    expect(res.body.monthToDate).toEqual({
+    expect(res.body.monthToDate).toMatchObject({
       from: '2026-10-01',
       to: '2026-10-15',
       count: 4,
@@ -73,6 +73,16 @@ describe('GET /api/reports', () => {
       lowest: 100,
       average: 113,
     });
+  });
+
+  it('includes a per-day summary of the month for the chart', async () => {
+    const res = await getReport('2026-10-15');
+
+    // only days with readings, oldest first; the 20th is after the selected date
+    expect(res.body.monthToDate.byDay).toEqual([
+      { date: '2026-10-02', average: 150, lowest: 150, highest: 150 },
+      { date: '2026-10-15', average: 100.7, lowest: 100, highest: 101 },
+    ]);
   });
 
   it('returns stats for the whole previous month', async () => {

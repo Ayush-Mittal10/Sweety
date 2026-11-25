@@ -113,7 +113,7 @@ All routes except register and login need an `Authorization: Bearer <token>` hea
 | POST | `/api/readings` | `{ date, slot, value }` |
 | PUT | `/api/readings/:id` | Replace a reading's date, slot and value |
 | DELETE | `/api/readings/:id` | Delete a reading |
-| GET | `/api/reports?date=YYYY-MM-DD` | Daily, month-to-date and previous-month stats. Defaults to today |
+| GET | `/api/reports?date=YYYY-MM-DD` | Daily, month-to-date and previous-month stats. Defaults to today. `monthToDate.byDay` has the average, lowest and highest for each day with readings (used by the chart) |
 
 Slots are `morning_fasting`, `after_breakfast`, `after_lunch` and `after_dinner`.
 
