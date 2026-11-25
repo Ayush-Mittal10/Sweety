@@ -137,4 +137,19 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.delete('/:id', async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(404).json({ error: 'Reading not found.' });
+
+  const result = await pool.query('DELETE FROM readings WHERE id = $1 AND user_id = $2', [
+    id,
+    req.userId,
+  ]);
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Reading not found.' });
+  }
+
+  res.status(204).end();
+});
+
 module.exports = router;

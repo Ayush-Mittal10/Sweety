@@ -241,3 +241,35 @@ describe('PUT /api/readings/:id', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('DELETE /api/readings/:id', () => {
+  function deleteReading(id, authToken = token) {
+    return request(app).delete(`/api/readings/${id}`).set('Authorization', `Bearer ${authToken}`);
+  }
+
+  it('deletes a reading and frees up its slot', async () => {
+    const created = await addReading({ slot: 'after_lunch' });
+
+    const res = await deleteReading(created.body.reading.id);
+    expect(res.status).toBe(204);
+
+    const again = await addReading({ slot: 'after_lunch' });
+    expect(again.status).toBe(201);
+  });
+
+  it("returns 404 for another user's reading and leaves it alone", async () => {
+    const created = await addReading();
+    const otherToken = await registerUser({ email: 'ravi@example.com' });
+
+    const res = await deleteReading(created.body.reading.id, otherToken);
+    expect(res.status).toBe(404);
+
+    const { rowCount } = await pool.query('SELECT id FROM readings');
+    expect(rowCount).toBe(1);
+  });
+
+  it('returns 404 for a reading that does not exist', async () => {
+    const res = await deleteReading(999);
+    expect(res.status).toBe(404);
+  });
+});
