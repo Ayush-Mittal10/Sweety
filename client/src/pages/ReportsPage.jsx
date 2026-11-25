@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../api';
+import MonthChart from '../components/MonthChart';
 import ReportCard from '../components/ReportCard';
-import { monthName, todayISO } from '../utils/dates';
+import { formatDateRange, monthName, todayISO } from '../utils/dates';
 import { slotLabel } from '../utils/readings';
 
 function ReportsPage() {
@@ -84,6 +85,20 @@ function ReportsPage() {
             emptyMessage={`No readings in ${monthName(reports.previousMonth.from)}.`}
           />
         </div>
+      )}
+
+      {reports && reports.monthToDate.count > 0 && (
+        <section className="card chart-card">
+          <h2>Month-to-date trend</h2>
+          <p className="muted report-range">
+            {formatDateRange(reports.monthToDate.from, reports.monthToDate.to)}
+          </p>
+          <MonthChart
+            byDay={reports.monthToDate.byDay}
+            from={reports.monthToDate.from}
+            to={reports.monthToDate.to}
+          />
+        </section>
       )}
     </>
   );
