@@ -26,6 +26,16 @@ sweety/
         └── utils/
 ```
 
+## Screenshots
+
+| Log in | Readings |
+|---|---|
+| ![Login page](docs/screenshots/login.png) | ![Readings for a day](docs/screenshots/readings.png) |
+
+| Reports | Month-to-date chart |
+|---|---|
+| ![Daily, month-to-date and previous month reports](docs/screenshots/reports.png) | ![Line chart of daily averages](docs/screenshots/reports-chart.png) |
+
 ## Getting started
 
 ### Prerequisites
