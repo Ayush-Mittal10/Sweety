@@ -1,0 +1,60 @@
+const express = require('express');
+const pool = require('../db');
+const requireAuth = require('../middleware/requireAuth');
+const { SLOTS } = require('../utils/slots');
+const { todayISO, isValidISODate } = require('../utils/dates');
+const { getReportRanges } = require('../utils/reportRanges');
+
+const router = express.Router();
+router.use(requireAuth);
+
+// Highest, lowest, average (1 decimal) and count for a date range.
+// With no readings, count is 0 and the rest are null.
+async function getStats(userId, { from, to }) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int                      AS count,
+            MAX(value)                         AS highest,
+            MIN(value)                         AS lowest,
+            ROUND(AVG(value)::numeric, 1)::float AS average
+     FROM readings
+     WHERE user_id = $1 AND reading_date BETWEEN $2 AND $3`,
+    [userId, from, to]
+  );
+  return { from, to, ...rows[0] };
+}
+
+// GET /api/reports?date=YYYY-MM-DD  (defaults to today)
+router.get('/', async (req, res) => {
+  const date = req.query.date || todayISO();
+
+  if (!isValidISODate(date)) {
+    return res.status(400).json({ error: 'Please choose a valid date.' });
+  }
+  if (date > todayISO()) {
+    return res.status(400).json({ error: 'Date cannot be in the future.' });
+  }
+
+  const ranges = getReportRanges(date);
+
+  const [daily, monthToDate, previousMonth, dailyReadings] = await Promise.all([
+    getStats(req.userId, ranges.daily),
+    getStats(req.userId, ranges.monthToDate),
+    getStats(req.userId, ranges.previousMonth),
+    pool.query(
+      `SELECT id, reading_date AS date, slot, value
+       FROM readings
+       WHERE user_id = $1 AND reading_date = $2
+       ORDER BY array_position($3::text[], slot::text)`,
+      [req.userId, date, SLOTS]
+    ),
+  ]);
+
+  res.json({
+    date,
+    daily: { ...daily, readings: dailyReadings.rows },
+    monthToDate,
+    previousMonth,
+  });
+});
+
+module.exports = router;

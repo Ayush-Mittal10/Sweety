@@ -3,6 +3,7 @@ const cors = require('cors');
 const config = require('./config');
 const authRoutes = require('./routes/auth');
 const readingRoutes = require('./routes/readings');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/readings', readingRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
