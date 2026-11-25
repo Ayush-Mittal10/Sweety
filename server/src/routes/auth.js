@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
+const requireAuth = require('../middleware/requireAuth');
 const pool = require('../db');
 
 const router = express.Router();
@@ -67,6 +68,15 @@ router.post('/login', async (req, res) => {
     token: signToken(user),
     user: { id: user.id, name: user.name, email: user.email },
   });
+});
+
+// Used by the frontend to restore the session on page refresh
+router.get('/me', requireAuth, async (req, res) => {
+  const { rows } = await pool.query('SELECT id, name, email FROM users WHERE id = $1', [req.userId]);
+  if (rows.length === 0) {
+    return res.status(401).json({ error: 'Please log in to continue.' });
+  }
+  res.json({ user: rows[0] });
 });
 
 module.exports = router;
