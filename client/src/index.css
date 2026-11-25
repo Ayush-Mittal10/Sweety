@@ -281,3 +281,30 @@ section.card h2 {
 .reading-table tr:last-child td {
   border-bottom: none;
 }
+
+.row-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row-actions .button-link + .button-link {
+  margin-left: 1rem;
+}
+
+.button-link.danger {
+  color: var(--color-error);
+}
+
+.reading-table .editing-row td {
+  background: var(--color-bg);
+  padding: 1rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

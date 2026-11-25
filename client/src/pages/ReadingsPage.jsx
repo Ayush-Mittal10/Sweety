@@ -13,12 +13,15 @@ function ReadingsPage() {
   // bumped after a change so the list fetches again
   const [reloadCount, setReloadCount] = useState(0);
   const [lastSaved, setLastSaved] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     // if the user switches dates quickly, ignore answers for the old date
     let ignore = false;
     setLoading(true);
     setLoadError('');
+    setEditingId(null);
 
     api
       .listReadings(selectedDate)
@@ -45,6 +48,35 @@ function ReadingsPage() {
     // show the day the reading was added to
     setSelectedDate(data.reading.date);
     setReloadCount((count) => count + 1);
+  }
+
+  async function handleUpdate(reading) {
+    const data = await api.updateReading(editingId, reading);
+    setEditingId(null);
+    setSelectedDate(data.reading.date);
+    setReloadCount((count) => count + 1);
+  }
+
+  async function handleDelete(reading) {
+    const confirmed = window.confirm(
+      `Delete the ${slotLabel(reading.slot)} reading (${reading.value} mg/dl) for ${formatDate(reading.date)}?`
+    );
+    if (!confirmed) return;
+
+    setActionError('');
+    setLastSaved(null);
+    try {
+      await api.deleteReading(reading.id);
+      setReloadCount((count) => count + 1);
+    } catch (err) {
+      setActionError(err.message);
+    }
+  }
+
+  function startEditing(reading) {
+    setActionError('');
+    setLastSaved(null);
+    setEditingId(reading.id);
   }
 
   return (
@@ -86,7 +118,21 @@ function ReadingsPage() {
             {loadError}
           </p>
         )}
-        {!loading && !loadError && <ReadingList readings={readings} />}
+        {actionError && (
+          <p className="form-error" role="alert">
+            {actionError}
+          </p>
+        )}
+        {!loading && !loadError && (
+          <ReadingList
+            readings={readings}
+            editingId={editingId}
+            onEdit={startEditing}
+            onCancelEdit={() => setEditingId(null)}
+            onSave={handleUpdate}
+            onDelete={handleDelete}
+          />
+        )}
       </section>
     </>
   );
