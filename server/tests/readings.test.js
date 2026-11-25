@@ -113,3 +113,51 @@ describe('POST /api/readings', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('GET /api/readings', () => {
+  function listReadings(query = '') {
+    return request(app).get(`/api/readings${query}`).set('Authorization', `Bearer ${token}`);
+  }
+
+  it('lists readings newest day first, in slot order within a day', async () => {
+    await addReading({ date: '2026-10-14', slot: 'after_dinner', value: 150 });
+    await addReading({ date: '2026-10-15', slot: 'after_lunch', value: 140 });
+    await addReading({ date: '2026-10-15', slot: 'morning_fasting', value: 95 });
+
+    const res = await listReadings();
+
+    expect(res.status).toBe(200);
+    expect(res.body.readings.map((r) => [r.date, r.slot])).toEqual([
+      ['2026-10-15', 'morning_fasting'],
+      ['2026-10-15', 'after_lunch'],
+      ['2026-10-14', 'after_dinner'],
+    ]);
+  });
+
+  it('filters by date', async () => {
+    await addReading({ date: '2026-10-14' });
+    await addReading({ date: '2026-10-15' });
+
+    const res = await listReadings('?date=2026-10-15');
+
+    expect(res.body.readings).toHaveLength(1);
+    expect(res.body.readings[0].date).toBe('2026-10-15');
+  });
+
+  it('rejects an invalid date filter', async () => {
+    const res = await listReadings('?date=yesterday');
+    expect(res.status).toBe(400);
+  });
+
+  it("does not show another user's readings", async () => {
+    await addReading({ value: 120 });
+    const otherToken = await registerUser({ email: 'ravi@example.com' });
+
+    const res = await request(app)
+      .get('/api/readings')
+      .set('Authorization', `Bearer ${otherToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.readings).toEqual([]);
+  });
+});

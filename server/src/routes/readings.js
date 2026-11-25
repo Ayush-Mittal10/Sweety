@@ -2,7 +2,8 @@ const express = require('express');
 const pool = require('../db');
 const requireAuth = require('../middleware/requireAuth');
 const { validateReading } = require('../validation/readings');
-const { SLOT_LABELS } = require('../utils/slots');
+const { SLOT_LABELS, SLOTS } = require('../utils/slots');
+const { isValidISODate } = require('../utils/dates');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -13,6 +14,32 @@ const UNIQUE_VIOLATION = '23505';
 function duplicateSlotMessage(slot) {
   return `You already have an ${SLOT_LABELS[slot]} reading for this date.`;
 }
+
+// GET /api/readings?date=YYYY-MM-DD  (date is optional)
+// Newest day first; within a day, in slot order (morning -> dinner).
+router.get('/', async (req, res) => {
+  const { date } = req.query;
+  const params = [req.userId, SLOTS];
+  let dateFilter = '';
+
+  if (date !== undefined) {
+    if (!isValidISODate(date)) {
+      return res.status(400).json({ error: 'Please choose a valid date.' });
+    }
+    params.push(date);
+    dateFilter = 'AND reading_date = $3';
+  }
+
+  const { rows } = await pool.query(
+    `SELECT id, reading_date AS date, slot, value
+     FROM readings
+     WHERE user_id = $1 ${dateFilter}
+     ORDER BY reading_date DESC, array_position($2::text[], slot::text)`,
+    params
+  );
+
+  res.json({ readings: rows });
+});
 
 router.post('/', async (req, res) => {
   const body = req.body || {};
