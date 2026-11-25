@@ -308,3 +308,81 @@ section.card h2 {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ---------- reports ---------- */
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.report-grid section.card {
+  margin-bottom: 0;
+}
+
+.report-card h2 {
+  margin-bottom: 0.125rem;
+}
+
+.report-range {
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.stats div {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 0.625rem 0.75rem;
+}
+
+.stats dt {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stats-unit {
+  font-size: 0.8125rem;
+  margin: 0.5rem 0 0;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--color-muted);
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 1.5rem 1rem;
+  margin: 0;
+}
+
+.report-readings {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.report-readings li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.report-readings li:last-child {
+  border-bottom: none;
+}

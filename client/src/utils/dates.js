@@ -12,12 +12,43 @@ export function todayISO() {
   return toISODate(new Date());
 }
 
+// Month names are spelled out here instead of using toLocaleDateString,
+// which gives 'Sept' in some browsers and changes with the user's locale.
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function splitDate(isoDate) {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return { year, month, day };
+}
+
+function shortMonth(month) {
+  return MONTHS[month - 1].slice(0, 3);
+}
+
 // '2026-10-15' -> '15 Oct 2026'
 export function formatDate(isoDate) {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const { year, month, day } = splitDate(isoDate);
+  return `${day} ${shortMonth(month)} ${year}`;
+}
+
+// ('2026-10-01', '2026-10-15') -> '1 Oct – 15 Oct 2026'
+// ('2026-10-15', '2026-10-15') -> '15 Oct 2026'
+export function formatDateRange(from, to) {
+  if (from === to) return formatDate(from);
+
+  const start = splitDate(from);
+  const end = splitDate(to);
+
+  if (start.year === end.year) {
+    return `${start.day} ${shortMonth(start.month)} – ${formatDate(to)}`;
+  }
+  return `${formatDate(from)} – ${formatDate(to)}`;
+}
+
+// '2026-09-01' -> 'September'
+export function monthName(isoDate) {
+  return MONTHS[splitDate(isoDate).month - 1];
 }
