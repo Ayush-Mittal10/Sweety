@@ -26,7 +26,11 @@ sweety/
         └── utils/
 ```
 
-## Screenshots
+## Demo
+
+**Screen recording:** [watch on Google Drive](https://drive.google.com/file/d/1qxHs7q1btLReGEX8eadOAI8OulDKa12l/view?usp=sharing)
+
+### Screenshots
 
 | Log in | Readings |
 |---|---|
