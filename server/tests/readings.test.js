@@ -156,6 +156,70 @@ describe('GET /api/readings', () => {
     expect(res.status).toBe(400);
   });
 
+  describe('pagination', () => {
+    // 3 days x 4 slots = 12 readings
+    beforeEach(async () => {
+      for (const date of ['2026-10-13', '2026-10-14', '2026-10-15']) {
+        for (const slot of ['morning_fasting', 'after_breakfast', 'after_lunch', 'after_dinner']) {
+          await addReading({ date, slot });
+        }
+      }
+    });
+
+    it('defaults to page 1 with 20 per page', async () => {
+      const res = await listReadings();
+
+      expect(res.body.readings).toHaveLength(12);
+      expect(res.body.pagination).toEqual({ page: 1, limit: 20, total: 12, totalPages: 1 });
+    });
+
+    it('returns the requested page', async () => {
+      const page1 = await listReadings('?page=1&limit=5');
+      const page3 = await listReadings('?page=3&limit=5');
+
+      expect(page1.body.readings).toHaveLength(5);
+      expect(page1.body.readings[0]).toMatchObject({ date: '2026-10-15', slot: 'morning_fasting' });
+      expect(page3.body.readings).toHaveLength(2);
+      expect(page3.body.readings[1]).toMatchObject({ date: '2026-10-13', slot: 'after_dinner' });
+      expect(page3.body.pagination).toEqual({ page: 3, limit: 5, total: 12, totalPages: 3 });
+    });
+
+    it('does not repeat or skip readings across pages', async () => {
+      const pages = await Promise.all([1, 2, 3].map((page) => listReadings(`?page=${page}&limit=5`)));
+      const ids = pages.flatMap((res) => res.body.readings.map((r) => r.id));
+
+      expect(new Set(ids).size).toBe(12);
+    });
+
+    it('works together with the date filter', async () => {
+      const res = await listReadings('?date=2026-10-14&limit=3');
+
+      expect(res.body.readings).toHaveLength(3);
+      expect(res.body.pagination).toEqual({ page: 1, limit: 3, total: 4, totalPages: 2 });
+    });
+
+    it('returns an empty list past the last page', async () => {
+      const res = await listReadings('?page=10&limit=5');
+
+      expect(res.status).toBe(200);
+      expect(res.body.readings).toEqual([]);
+      expect(res.body.pagination.total).toBe(12);
+    });
+
+    it('caps the page size at 100', async () => {
+      const res = await listReadings('?limit=500');
+      expect(res.body.pagination.limit).toBe(100);
+    });
+
+    it.each(['?page=0', '?page=-1', '?limit=0', '?page=abc', '?limit=2.5'])(
+      'rejects %s',
+      async (query) => {
+        const res = await listReadings(query);
+        expect(res.status).toBe(400);
+      }
+    );
+  });
+
   it("does not show another user's readings", async () => {
     await addReading({ value: 120 });
     const otherToken = await registerUser({ email: 'ravi@example.com' });

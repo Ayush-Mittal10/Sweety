@@ -44,30 +44,56 @@ function parseId(raw) {
   return Number.isInteger(id) && id > 0 && id <= 2147483647 ? id : null;
 }
 
-// GET /api/readings?date=YYYY-MM-DD  (date is optional)
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+// Reads ?page and ?limit. Returns null if either is not a positive whole number.
+function parsePagination(query) {
+  const page = query.page === undefined ? 1 : Number(query.page);
+  const limit = query.limit === undefined ? DEFAULT_PAGE_SIZE : Number(query.limit);
+
+  if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1) {
+    return null;
+  }
+  return { page, limit: Math.min(limit, MAX_PAGE_SIZE) };
+}
+
+// GET /api/readings?date=YYYY-MM-DD&page=1&limit=20  (all optional)
 // Newest day first; within a day, in slot order (morning -> dinner).
 router.get('/', async (req, res) => {
-  const { date } = req.query;
-  const params = [req.userId, SLOTS];
-  let dateFilter = '';
+  const pagination = parsePagination(req.query);
+  if (!pagination) {
+    return res.status(400).json({ error: 'page and limit must be positive whole numbers.' });
+  }
+  const { page, limit } = pagination;
 
-  if (date !== undefined) {
-    if (!isValidISODate(date)) {
-      return res.status(400).json({ error: 'Please choose a valid date.' });
-    }
-    params.push(date);
-    dateFilter = 'AND reading_date = $3';
+  const { date } = req.query;
+  if (date !== undefined && !isValidISODate(date)) {
+    return res.status(400).json({ error: 'Please choose a valid date.' });
   }
 
-  const { rows } = await pool.query(
-    `SELECT id, reading_date AS date, slot, value
-     FROM readings
-     WHERE user_id = $1 ${dateFilter}
-     ORDER BY reading_date DESC, array_position($2::text[], slot::text)`,
-    params
-  );
+  // $2 is NULL when there is no date filter, which matches every day
+  const filter = 'user_id = $1 AND ($2::date IS NULL OR reading_date = $2::date)';
+  const filterValues = [req.userId, date ?? null];
 
-  res.json({ readings: rows });
+  const [countResult, readingsResult] = await Promise.all([
+    pool.query(`SELECT COUNT(*)::int AS total FROM readings WHERE ${filter}`, filterValues),
+    pool.query(
+      `SELECT id, reading_date AS date, slot, value
+       FROM readings
+       WHERE ${filter}
+       ORDER BY reading_date DESC, array_position($3::text[], slot::text)
+       LIMIT $4 OFFSET $5`,
+      [...filterValues, SLOTS, limit, (page - 1) * limit]
+    ),
+  ]);
+
+  const total = countResult.rows[0].total;
+
+  res.json({
+    readings: readingsResult.rows,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
 });
 
 router.post('/', async (req, res) => {

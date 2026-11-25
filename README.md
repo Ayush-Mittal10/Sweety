@@ -109,7 +109,7 @@ All routes except register and login need an `Authorization: Bearer <token>` hea
 | POST | `/api/auth/register` | `{ name, email, password }` → `{ token, user }` |
 | POST | `/api/auth/login` | `{ email, password }` → `{ token, user }` |
 | GET | `/api/auth/me` | Current user (used to restore the session on refresh) |
-| GET | `/api/readings?date=YYYY-MM-DD` | Your readings, newest first. `date` is optional |
+| GET | `/api/readings?date=&page=&limit=` | Your readings, newest first. All optional: `date` filters to one day, `page` defaults to 1, `limit` defaults to 20 (max 100). Returns `{ readings, pagination: { page, limit, total, totalPages } }` |
 | POST | `/api/readings` | `{ date, slot, value }` |
 | PUT | `/api/readings/:id` | Replace a reading's date, slot and value |
 | DELETE | `/api/readings/:id` | Delete a reading |
