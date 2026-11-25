@@ -386,3 +386,28 @@ section.card h2 {
 .report-readings li:last-child {
   border-bottom: none;
 }
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 640px) {
+  .app-header {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  /* logo and user menu on the first line, nav links below */
+  .nav {
+    order: 3;
+    width: 100%;
+    gap: 1.5rem;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+}
